@@ -58,6 +58,7 @@ jobs:
           PUZZLE_API_URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
           PUZZLE_API_ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
           PUZZLE_TITLE: ${{ vars.PUZZLE_TITLE }}
+          PUZZLE_FILE_PREFIX: ${{ vars.PUZZLE_FILE_PREFIX }}
           REQUESTED_DATE: ${{ inputs.date }}
         run: |
           if [ -n "$REQUESTED_DATE" ]; then
@@ -65,32 +66,28 @@ jobs:
           else
             path=$(python fetch.py)
           fi
+          name=$(basename "$path" .puz)
           echo "path=$path" >> "$GITHUB_OUTPUT"
-          echo "date=$(basename "$path" .puz)" >> "$GITHUB_OUTPUT"
+          # The date is the trailing YYYY-MM-DD, after any configured prefix.
+          echo "date=${name: -10}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: puzzle-${{ steps.generate.outputs.date }}
+          # Uploads the .puz as-is instead of wrapping it in a zip. The
+          # artifact takes its name from the file, so `name` is ignored.
+          archive: false
           path: ${{ steps.generate.outputs.path }}
           retention-days: 1
           if-no-files-found: error
 
-      - name: Summarise the run
+      # Runs after the upload, so the artifact is already there to fall back on
+      # if Telegram is the thing that broke.
+      - name: Deliver and summarise
         env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+          PUZZLE_PATH: ${{ steps.generate.outputs.path }}
           PUZZLE_DATE: ${{ steps.generate.outputs.date }}
         run: |
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import os
-          import urllib.parse
-
-          date = os.environ["PUZZLE_DATE"]
-          year, month, day = date.split("-")
-          text = urllib.parse.quote(f"Crucigrama del {day}/{month}/{year}", safe="")
-
-          print(f"## {date}")
-          print()
-          print("Downloaded, converted and validated. The `.puz` is attached to")
-          print("this run as an artifact, for one day.")
-          print()
-          print(f"[Open WhatsApp with the message ready](https://wa.me/?text={text})")
-          PY
+          python notify.py --file "$PUZZLE_PATH" --date "$PUZZLE_DATE" \
+            >> "$GITHUB_STEP_SUMMARY"

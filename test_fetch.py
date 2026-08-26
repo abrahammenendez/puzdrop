@@ -9,7 +9,7 @@ import puz
 import pytest
 
 import fetch
-from fetch import Config, ConfigurationError, FetchError, NotPublishedError
+from fetch import Config, ConfigurationError, FetchError, NotPublishedError, filename
 
 # .invalid is reserved, so any hostname that leaks into a message came from here.
 HOST = "api.invalid"
@@ -47,6 +47,7 @@ def configured(monkeypatch):
     monkeypatch.setenv("PUZZLE_API_URL_TEMPLATE", TEMPLATE)
     monkeypatch.setenv("PUZZLE_API_ORIGIN", ORIGIN)
     monkeypatch.setenv("PUZZLE_TITLE", TITLE)
+    monkeypatch.delenv("PUZZLE_FILE_PREFIX", raising=False)
 
 
 def test_the_request_substitutes_the_date_and_sends_the_origin(monkeypatch):
@@ -144,6 +145,23 @@ def test_a_template_without_the_date_placeholder_is_rejected(monkeypatch, config
 
     with pytest.raises(ConfigurationError, match="placeholder"):
         Config.from_env()
+
+
+def test_the_prefix_is_optional_and_hyphenated_when_present():
+    assert filename(DATE, "pfx") == f"pfx-{DATE}.puz"
+    assert filename(DATE, "") == f"{DATE}.puz"
+
+
+def test_the_prefix_variable_reaches_the_output_filename(
+    monkeypatch, configured, capsys, tmp_path, simple_payload
+):
+    monkeypatch.setenv("PUZZLE_FILE_PREFIX", "pfx")
+    body = json.dumps(simple_payload).encode()
+    monkeypatch.setattr(urllib.request, "urlopen", _Urlopen(body))
+
+    assert fetch.main(["--date", DATE, "--output", str(tmp_path)]) == 0
+
+    assert (tmp_path / f"pfx-{DATE}.puz").is_file()
 
 
 def test_a_generated_file_is_named_after_the_date_and_reads_back(

@@ -51,6 +51,7 @@ class Config:
     api_url_template: str
     api_origin: str
     title: str
+    file_prefix: str
 
     @classmethod
     def from_env(cls) -> Self:
@@ -58,6 +59,7 @@ class Config:
             api_url_template=_required("PUZZLE_API_URL_TEMPLATE"),
             api_origin=_required("PUZZLE_API_ORIGIN"),
             title=_required("PUZZLE_TITLE"),
+            file_prefix=_optional("PUZZLE_FILE_PREFIX"),
         )
         # Without the placeholder every run would silently fetch the same day.
         if "{date}" not in config.api_url_template:
@@ -67,11 +69,19 @@ class Config:
         return config
 
 
+def _optional(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
 def _required(name: str) -> str:
-    value = os.environ.get(name, "").strip()
+    value = _optional(name)
     if not value:
         raise ConfigurationError(f"{name} is not set")
     return value
+
+
+def filename(day: str, prefix: str) -> str:
+    return f"{prefix}-{day}.puz" if prefix else f"{day}.puz"
 
 
 def fetch(day: str, api_url_template: str, api_origin: str) -> dict[str, Any]:
@@ -155,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         payload = fetch(day, config.api_url_template, config.api_origin)
         puzzle = build_puzzle(payload, day, config.title)
         validate(puzzle)
-        path = args.output / f"{day}.puz"
+        path = args.output / filename(day, config.file_prefix)
         save(puzzle, path)
     except (ConfigurationError, FetchError, SourcePayloadError, OutputError) as error:
         print(f"error: {error}", file=sys.stderr)
