@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.claude/
+.codex/
+AGENTS.md
+CLAUDE.md
+
+# Generated puzzles: never persisted, see .claude/CLAUDE.md and README.md
+output/

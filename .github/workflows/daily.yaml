@@ -1,0 +1,96 @@
+name: Daily
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to fetch (YYYY-MM-DD). Empty for today.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  puzzle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Mask source configuration
+        # GitHub doesn't redact variables from logs the way it redacts
+        # secrets, and this repository's logs are public.
+        env:
+          URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
+          ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
+        run: |
+          echo "::add-mask::$URL_TEMPLATE"
+          echo "::add-mask::$ORIGIN"
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install --group dev
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Test
+        run: pytest
+
+      - name: Generate puzzle
+        id: generate
+        env:
+          PUZZLE_API_URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
+          PUZZLE_API_ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
+          PUZZLE_TITLE: ${{ vars.PUZZLE_TITLE }}
+          REQUESTED_DATE: ${{ inputs.date }}
+        run: |
+          if [ -n "$REQUESTED_DATE" ]; then
+            path=$(python fetch.py --date "$REQUESTED_DATE")
+          else
+            path=$(python fetch.py)
+          fi
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "date=$(basename "$path" .puz)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: puzzle-${{ steps.generate.outputs.date }}
+          path: ${{ steps.generate.outputs.path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Summarise the run
+        env:
+          PUZZLE_DATE: ${{ steps.generate.outputs.date }}
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os
+          import urllib.parse
+
+          date = os.environ["PUZZLE_DATE"]
+          year, month, day = date.split("-")
+          text = urllib.parse.quote(f"Crucigrama del {day}/{month}/{year}", safe="")
+
+          print(f"## {date}")
+          print()
+          print("Downloaded, converted and validated. The `.puz` is attached to")
+          print("this run as an artifact, for one day.")
+          print()
+          print(f"[Open WhatsApp with the message ready](https://wa.me/?text={text})")
+          PY
