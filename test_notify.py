@@ -8,7 +8,7 @@ from datetime import date
 import pytest
 
 import notify
-from notify import DeliveryError, message, send_to_telegram, whatsapp_link
+from notify import DeliveryError, message, send_to_telegram
 
 TOKEN = "1234567:AAdummy-token-value"
 CHAT_ID = "-1009876543210"
@@ -58,12 +58,6 @@ def test_the_message_is_a_spanish_date_with_the_robot():
     assert message(DAY) == "🤖 Crucigrama del 26/08/2026"
 
 
-def test_the_whatsapp_link_percent_encodes_the_whole_message():
-    assert whatsapp_link(message(DAY)) == (
-        "https://wa.me/?text=%F0%9F%A4%96%20Crucigrama%20del%2026%2F08%2F2026"
-    )
-
-
 def test_the_upload_carries_the_file_the_caption_and_the_chat(monkeypatch, puzzle):
     urlopen = _Urlopen({"ok": True})
     monkeypatch.setattr(urllib.request, "urlopen", urlopen)
@@ -103,6 +97,13 @@ def test_an_ok_false_body_is_still_a_failure(monkeypatch, puzzle):
         send_to_telegram(puzzle, "x", TOKEN, CHAT_ID)
 
 
+def test_a_refusal_without_a_description_still_reads_as_a_sentence(monkeypatch, puzzle):
+    monkeypatch.setattr(urllib.request, "urlopen", _Urlopen({"ok": False}))
+
+    with pytest.raises(DeliveryError, match=r"refused the upload \(no detail\)"):
+        send_to_telegram(puzzle, "x", TOKEN, CHAT_ID)
+
+
 @pytest.mark.parametrize(
     "failure",
     [
@@ -136,7 +137,6 @@ def test_without_credentials_nothing_is_sent_and_the_run_still_passes(
 
     out = capsys.readouterr().out
     assert "not configured" in out
-    assert "https://wa.me/?text=" in out
 
 
 def test_a_delivered_puzzle_reports_success(monkeypatch, capsys, configured, puzzle):
@@ -145,11 +145,10 @@ def test_a_delivered_puzzle_reports_success(monkeypatch, capsys, configured, puz
     assert notify.main(["--file", str(puzzle), "--date", "2026-08-26"]) == 0
 
     out = capsys.readouterr().out
-    assert "Sent to Telegram as `pfx-2026-08-26.puz`" in out
-    assert "https://wa.me/?text=" in out
+    assert "Sent pfx-2026-08-26.puz to Telegram" in out
 
 
-def test_a_failed_delivery_exits_non_zero_but_still_prints_the_fallback(
+def test_a_failed_delivery_exits_non_zero_but_still_prints_the_summary(
     monkeypatch, capsys, configured, puzzle
 ):
     monkeypatch.setattr(
@@ -160,5 +159,4 @@ def test_a_failed_delivery_exits_non_zero_but_still_prints_the_fallback(
 
     out = capsys.readouterr().out
     assert "Telegram delivery failed" in out
-    assert "https://wa.me/?text=" in out
     assert TOKEN not in out

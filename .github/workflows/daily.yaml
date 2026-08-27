@@ -1,8 +1,8 @@
-name: Daily
+name: Daily puzdrop
 
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: '43 5 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -14,16 +14,16 @@ permissions:
   contents: read
 
 jobs:
-  puzzle:
+  daily-puzdrop:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
       run:
         shell: bash
     steps:
-      - name: Mask source configuration
-        # GitHub doesn't redact variables from logs the way it redacts
-        # secrets, and this repository's logs are public.
+      - name: Mask configuration values
+        # Actions redacts secrets from logs automatically, but not variables,
+        # so register these two as masks explicitly.
         env:
           URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
           ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
@@ -52,8 +52,8 @@ jobs:
       - name: Test
         run: pytest
 
-      - name: Generate puzzle
-        id: generate
+      - name: Fetch and convert puzzle
+        id: fetch
         env:
           PUZZLE_API_URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
           PUZZLE_API_ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
@@ -76,18 +76,21 @@ jobs:
           # Uploads the .puz as-is instead of wrapping it in a zip. The
           # artifact takes its name from the file, so `name` is ignored.
           archive: false
-          path: ${{ steps.generate.outputs.path }}
+          path: ${{ steps.fetch.outputs.path }}
           retention-days: 1
           if-no-files-found: error
 
       # Runs after the upload, so the artifact is already there to fall back on
       # if Telegram is the thing that broke.
-      - name: Deliver and summarise
+      - name: Deliver
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
-          PUZZLE_PATH: ${{ steps.generate.outputs.path }}
-          PUZZLE_DATE: ${{ steps.generate.outputs.date }}
+          PUZZLE_PATH: ${{ steps.fetch.outputs.path }}
+          PUZZLE_DATE: ${{ steps.fetch.outputs.date }}
         run: |
-          python notify.py --file "$PUZZLE_PATH" --date "$PUZZLE_DATE" \
-            >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## $PUZZLE_DATE"
+            echo
+            python notify.py --file "$PUZZLE_PATH" --date "$PUZZLE_DATE"
+          } >> "$GITHUB_STEP_SUMMARY"

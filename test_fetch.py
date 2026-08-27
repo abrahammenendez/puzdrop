@@ -9,9 +9,9 @@ import puz
 import pytest
 
 import fetch
-from fetch import Config, ConfigurationError, FetchError, NotPublishedError, filename
+from fetch import Config, ConfigurationError, FetchError, filename
 
-# .invalid is reserved, so any hostname that leaks into a message came from here.
+# .invalid is reserved, so these placeholders can't collide with a real host.
 HOST = "api.invalid"
 ORIGIN = "https://site.invalid"
 TEMPLATE = f"https://{HOST}/puzzles/{{date}}"
@@ -64,17 +64,15 @@ def test_the_request_substitutes_the_date_and_sends_the_origin(monkeypatch):
 def test_a_missing_day_is_reported_as_not_yet_published(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", _failing(_http_error(404)))
 
-    with pytest.raises(NotPublishedError, match="no puzzle published for 2026-08-25"):
+    with pytest.raises(FetchError, match="no puzzle published for 2026-08-25"):
         fetch.fetch(DATE, TEMPLATE, ORIGIN)
 
 
 def test_other_http_failures_report_only_the_status_code(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", _failing(_http_error(503)))
 
-    with pytest.raises(FetchError, match="HTTP 503") as raised:
+    with pytest.raises(FetchError, match="request for 2026-08-25 failed with HTTP 503"):
         fetch.fetch(DATE, TEMPLATE, ORIGIN)
-
-    assert not isinstance(raised.value, NotPublishedError)
 
 
 @pytest.mark.parametrize(
@@ -153,7 +151,7 @@ def test_the_prefix_is_optional_and_hyphenated_when_present():
 
 
 def test_the_prefix_variable_reaches_the_output_filename(
-    monkeypatch, configured, capsys, tmp_path, simple_payload
+    monkeypatch, configured, tmp_path, simple_payload
 ):
     monkeypatch.setenv("PUZZLE_FILE_PREFIX", "pfx")
     body = json.dumps(simple_payload).encode()

@@ -14,6 +14,8 @@ Clues = dict[tuple[int, int], str]
 
 # .puz stores text as Latin-1, which has no room for smart quotes, long dashes
 # or an ellipsis. Swap those for ASCII before anything tries to encode them.
+# The non-breaking space is the odd one out: Latin-1 has it, but it reads as a
+# space and solvers are happier with a real one.
 _REPLACEMENTS = {
     "…": "...",
     "‘": "'",

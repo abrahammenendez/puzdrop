@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -15,6 +14,7 @@ from zoneinfo import ZoneInfo
 import puz
 
 from convert import SourcePayloadError, build_puzzle, validate
+from env import ConfigurationError, optional, required
 
 # The source publishes on Spanish calendar days, so neither UTC nor whatever
 # clock the runner happens to have gives the right answer for "today".
@@ -22,6 +22,7 @@ PUBLICATION_TIMEZONE = ZoneInfo("Europe/Madrid")
 
 DEFAULT_OUTPUT = Path("output")
 REQUEST_TIMEOUT_SECONDS = 15
+
 # This endpoint feeds a browser widget and already checks Origin, so send the
 # browser User-Agent it expects rather than a Python one.
 USER_AGENT = (
@@ -30,16 +31,8 @@ USER_AGENT = (
 )
 
 
-class ConfigurationError(RuntimeError):
-    """A required environment variable is missing or unusable."""
-
-
 class FetchError(RuntimeError):
     """The request failed."""
-
-
-class NotPublishedError(FetchError):
-    """The source has nothing for that date yet."""
 
 
 class OutputError(RuntimeError):
@@ -56,10 +49,10 @@ class Config:
     @classmethod
     def from_env(cls) -> Self:
         config = cls(
-            api_url_template=_required("PUZZLE_API_URL_TEMPLATE"),
-            api_origin=_required("PUZZLE_API_ORIGIN"),
-            title=_required("PUZZLE_TITLE"),
-            file_prefix=_optional("PUZZLE_FILE_PREFIX"),
+            api_url_template=required("PUZZLE_API_URL_TEMPLATE"),
+            api_origin=required("PUZZLE_API_ORIGIN"),
+            title=required("PUZZLE_TITLE"),
+            file_prefix=optional("PUZZLE_FILE_PREFIX"),
         )
         # Without the placeholder every run would silently fetch the same day.
         if "{date}" not in config.api_url_template:
@@ -69,17 +62,6 @@ class Config:
         return config
 
 
-def _optional(name: str) -> str:
-    return os.environ.get(name, "").strip()
-
-
-def _required(name: str) -> str:
-    value = _optional(name)
-    if not value:
-        raise ConfigurationError(f"{name} is not set")
-    return value
-
-
 def filename(day: str, prefix: str) -> str:
     return f"{prefix}-{day}.puz" if prefix else f"{day}.puz"
 
@@ -87,9 +69,8 @@ def filename(day: str, prefix: str) -> str:
 def fetch(day: str, api_url_template: str, api_origin: str) -> dict[str, Any]:
     """Request the payload for one date.
 
-    Re-raises every failure with a scrubbed message and no chained context: a
-    traceback carrying the URL or the Origin header would name the source, and
-    this repository's logs are public.
+    Failures are re-raised without the URL or Origin header and with no chained
+    context, so the endpoint stays out of tracebacks.
     """
     request = urllib.request.Request(
         api_url_template.format(date=day),
@@ -102,7 +83,7 @@ def fetch(day: str, api_url_template: str, api_origin: str) -> dict[str, Any]:
             body = response.read()
     except urllib.error.HTTPError as error:
         if error.code == 404:
-            raise NotPublishedError(f"no puzzle published for {day}") from None
+            raise FetchError(f"no puzzle published for {day}") from None
         raise FetchError(f"request for {day} failed with HTTP {error.code}") from None
     except OSError as error:
         raise FetchError(f"request for {day} failed ({type(error).__name__})") from None

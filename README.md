@@ -5,10 +5,9 @@ Automatically downloads my favourite daily crossword, converts it to a valid
 
 [![Daily](https://github.com/abrahammenendez/puzdrop/actions/workflows/daily.yaml/badge.svg)](https://github.com/abrahammenendez/puzdrop/actions/workflows/daily.yaml)
 
-A scheduled GitHub workflow fetches the day's puzzle from a **secret** JSON
-API, converts it to [Across Lite (`.puz`)](https://en.wikipedia.org/wiki/Crossword_puzzle#Software),
+A scheduled GitHub workflow fetches the day's puzzle from a **secret** API, converts it to [Across Lite (`.puz`)](https://en.wikipedia.org/wiki/Crossword_puzzle#Software),
 validates the result, sends it to Telegram, and leaves it as a short-lived
-build artifact with a ready-to-tap WhatsApp link.
+build artifact.
 
 `.puz` is the closest thing
 crosswords have to a universal format, most solving apps on any platform can
@@ -38,7 +37,7 @@ Omit `--date` to fetch the current day (in the `Europe/Madrid` timezone,
 regardless of where the command runs). The file is written to `output/`,
 which is gitignored; pass `--output` to write it elsewhere.
 
-`notify.py` takes it from there, and prints the run summary:
+`notify.py` takes it from there, and prints what it did:
 
 ```sh
 python notify.py --file output/2026-08-20.puz --date 2026-08-20
@@ -46,13 +45,14 @@ python notify.py --file output/2026-08-20.puz --date 2026-08-20
 
 ## Configuration
 
-| Variable | Purpose |
-| --- | --- |
-| `PUZZLE_API_URL_TEMPLATE` | Fetch URL, with `{date}` as a placeholder |
-| `PUZZLE_API_ORIGIN` | Value sent as the `Origin` header |
-| `PUZZLE_TITLE` | Title written into the generated `.puz`'s metadata |
-| `PUZZLE_FILE_PREFIX` | Optional prefix for the filename, `<prefix>-YYYY-MM-DD.puz` |
-| `TELEGRAM_CHAT_ID` | Optional chat to deliver to, see "Delivery" below |
+| Variable | Purpose                                                                         |
+| --- |---------------------------------------------------------------------------------|
+| `PUZZLE_API_URL_TEMPLATE` | Fetch URL, with `{date}` as a placeholder                                       |
+| `PUZZLE_API_ORIGIN` | Value sent as the `Origin` header                                               |
+| `PUZZLE_TITLE` | Title written into the generated `.puz`'s metadata                              |
+| `PUZZLE_FILE_PREFIX` | Optional prefix for the filename, `<prefix>-YYYY-MM-DD.puz`                     |
+| `TELEGRAM_BOT_TOKEN` | Optional token used to authenticate with the Telegram API, see "Delivery" below |
+| `TELEGRAM_CHAT_ID` | Optional Telegram chat to deliver to, see "Delivery" below                      |
 
 These are repository variables, not secrets: configuration rather than
 credentials. The workflow masks the two that would name the source, since
@@ -64,18 +64,10 @@ names the artifact on the run page.
 
 ## Delivery
 
-Two routes, and the second one is optional.
-
-**WhatsApp** is manual and always available. The run summary carries a
-`wa.me` link that opens WhatsApp with the message already typed; you pick the
-chat, attach the `.puz` from the artifact, and send. There is no way to
-pre-attach a file to a WhatsApp message without a verified business account,
-so that last step stays manual.
-
-**Telegram** is automatic. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+**Telegram** is optional. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
 and the workflow uploads the `.puz` straight into a chat, captioned, with no
-step left for you. Set neither and the workflow says so in the summary and
-carries on; the artifact and the `wa.me` link still work.
+step left for you. Set neither, and the workflow says so in the summary and
+carries on; the `.puz` is still there as a build artifact either way.
 
 To set it up: message [@BotFather](https://t.me/BotFather), send `/newbot`,
 and keep the token. Make a private group and add the bot to it. Then send
@@ -86,14 +78,9 @@ to it, so a plain "hello" leaves the next step empty.
 curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | python3 -m json.tool
 ```
 
-Read `"chat": {"id": ...}` out of the result; group ids are negative. If two
-show up, Telegram migrated the group to a supergroup and the id changed, so
-take the one starting `-100`. Add the token as a repository secret and the
+Read `"chat": {"id": ...}` out of the result. Add the token as a repository secret and the
 chat id as a repository variable. A group needs the bot only as a member, a
 channel needs it as an administrator.
-
-Telegram keeps chat history indefinitely, which cuts against the point of a
-1-day artifact, so set the chat's **Auto-Delete Timer** to 1 day.
 
 ## Workflow
 
