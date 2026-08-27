@@ -9,7 +9,8 @@ import puz
 import pytest
 
 import fetch
-from fetch import Config, ConfigurationError, FetchError, filename
+from convert import build_puzzle
+from fetch import Config, ConfigurationError, FetchError, OutputError, filename
 
 # .invalid is reserved, so these placeholders can't collide with a real host.
 HOST = "api.invalid"
@@ -173,6 +174,26 @@ def test_a_generated_file_is_named_after_the_date_and_reads_back(
     path = tmp_path / f"{DATE}.puz"
     assert puz.read(str(path)).title == f"{TITLE} - {DATE}"
     assert capsys.readouterr().out.strip() == str(path)
+
+
+def test_a_file_that_does_not_read_back_is_rejected(monkeypatch, tmp_path, payload):
+    puzzle = build_puzzle(
+        payload(
+            board="SOL\r\nOSO\r\nLA#",
+            across=[(0, 0, "a"), (1, 0, "b"), (2, 0, "c")],
+            down=[(0, 0, "d"), (0, 1, "e"), (0, 2, "f")],
+        ),
+        DATE,
+        TITLE,
+    )
+
+    def unreadable(path):
+        raise puz.PuzzleFormatError("checksums do not match")
+
+    monkeypatch.setattr(puz, "read", unreadable)
+
+    with pytest.raises(OutputError, match="checksums do not match"):
+        fetch.save(puzzle, tmp_path / "out.puz")
 
 
 def test_an_unpublished_day_exits_non_zero_with_a_plain_message(

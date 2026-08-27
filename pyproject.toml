@@ -5,6 +5,13 @@ dev = [{ include-group = "runtime" }, "pytest==9.1.1", "ruff==0.16.4"]
 [tool.ruff]
 target-version = "py313"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "C4", "PT", "N", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# The replacement table is keyed by the characters RUF001 objects to.
+"convert.py" = ["RUF001"]
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 filterwarnings = ["error"]

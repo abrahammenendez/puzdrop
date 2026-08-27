@@ -8,12 +8,11 @@ class ConfigurationError(RuntimeError):
 
 
 def optional(name: str) -> str:
-    """The stripped value of an environment variable, or "" when it is unset."""
+    """Whitespace is stripped, so a variable set to blanks counts as unset."""
     return os.environ.get(name, "").strip()
 
 
 def required(name: str) -> str:
-    """Like optional(), but raise ConfigurationError when the value is empty."""
     value = optional(name)
     if not value:
         raise ConfigurationError(f"{name} is not set")

@@ -5,18 +5,19 @@ Automatically downloads my favourite daily crossword, converts it to a valid
 
 [![Daily](https://github.com/abrahammenendez/puzdrop/actions/workflows/daily.yaml/badge.svg)](https://github.com/abrahammenendez/puzdrop/actions/workflows/daily.yaml)
 
-A scheduled GitHub workflow fetches the day's puzzle from a **secret** API, converts it to [Across Lite (`.puz`)](https://en.wikipedia.org/wiki/Crossword_puzzle#Software),
+A scheduled GitHub workflow fetches the day's puzzle from a **secret** API,
+converts it to [Across Lite (`.puz`)](https://en.wikipedia.org/wiki/Crossword_puzzle#Software),
 validates the result, sends it to Telegram, and leaves it as a short-lived
 build artifact.
 
-`.puz` is the closest thing
-crosswords have to a universal format, most solving apps on any platform can
-open one.
+`.puz` is the closest thing crosswords have to a universal format; most
+solving apps, on any platform, can open one.
 
 ## Getting started
 
 Requires Python 3.13, the version pinned in
-[`.python-version`](./.python-version) and installed by CI.
+[`.python-version`](./.python-version) and installed by CI, and pip 25.1 or
+newer for `--group`.
 
 ```sh
 pip install --group dev
@@ -45,22 +46,22 @@ python notify.py --file output/2026-08-20.puz --date 2026-08-20
 
 ## Configuration
 
-| Variable | Purpose                                                                         |
-| --- |---------------------------------------------------------------------------------|
-| `PUZZLE_API_URL_TEMPLATE` | Fetch URL, with `{date}` as a placeholder                                       |
-| `PUZZLE_API_ORIGIN` | Value sent as the `Origin` header                                               |
-| `PUZZLE_TITLE` | Title written into the generated `.puz`'s metadata                              |
-| `PUZZLE_FILE_PREFIX` | Optional prefix for the filename, `<prefix>-YYYY-MM-DD.puz`                     |
-| `TELEGRAM_BOT_TOKEN` | Optional token used to authenticate with the Telegram API, see "Delivery" below |
-| `TELEGRAM_CHAT_ID` | Optional Telegram chat to deliver to, see "Delivery" below                      |
+Repository **variables**, which are configuration rather than credentials:
 
-These are repository variables, not secrets: configuration rather than
-credentials. The workflow masks the two that would name the source, since
-this repository is public. `PUZZLE_FILE_PREFIX` is not masked, because it
-names the artifact on the run page.
+| Variable | Purpose |
+| --- | --- |
+| `PUZZLE_API_URL_TEMPLATE` | Fetch URL, with `{date}` as a placeholder |
+| `PUZZLE_API_ORIGIN` | Value sent as the `Origin` header |
+| `PUZZLE_TITLE` | Title written into the generated `.puz`'s metadata |
+| `PUZZLE_FILE_PREFIX` | Optional prefix for the filename, `<prefix>-YYYY-MM-DD.puz` |
+| `TELEGRAM_CHAT_ID` | Optional chat to deliver to, see "Delivery" below |
 
-`TELEGRAM_BOT_TOKEN` is the one real credential here, so it goes in
-**secrets**, not variables.
+Actions redacts secrets from logs but not variables, so the workflow masks the
+two that would name the source itself. `PUZZLE_FILE_PREFIX` is left unmasked,
+because it names the artifact on the run page.
+
+And one repository **secret**, `TELEGRAM_BOT_TOKEN`. It is the only real
+credential here, and optional like `TELEGRAM_CHAT_ID`.
 
 ## Delivery
 
@@ -78,9 +79,9 @@ to it, so a plain "hello" leaves the next step empty.
 curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | python3 -m json.tool
 ```
 
-Read `"chat": {"id": ...}` out of the result. Add the token as a repository secret and the
-chat id as a repository variable. A group needs the bot only as a member, a
-channel needs it as an administrator.
+Read `"chat": {"id": ...}` out of the result. Add the token as a repository
+secret and the chat id as a repository variable. A group needs the bot only as
+a member; a channel needs it as an administrator.
 
 ## Workflow
 

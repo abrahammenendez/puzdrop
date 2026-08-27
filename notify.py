@@ -21,7 +21,6 @@ class DeliveryError(RuntimeError):
 
 
 def message(day: date) -> str:
-    """The caption Telegram gets."""
     return f"🤖 Crucigrama del {day:%d/%m/%Y}"
 
 
@@ -50,7 +49,7 @@ def _description(answer: dict[str, Any]) -> str:
 
 
 def _refusal(error: urllib.error.HTTPError) -> str:
-    """Turn a Telegram HTTPError into the reason it carries in its body."""
+    """Telegram puts the reason for a refusal in the response body."""
     try:
         detail = _description(json.loads(error.read()))
     except (ValueError, OSError):
@@ -83,6 +82,10 @@ def send_to_telegram(path: Path, caption: str, token: str, chat_id: str) -> None
     except OSError as error:
         raise DeliveryError(
             f"telegram upload failed ({type(error).__name__})"
+        ) from None
+    except json.JSONDecodeError:
+        raise DeliveryError(
+            "telegram replied with something that was not JSON"
         ) from None
 
     if not answer.get("ok"):

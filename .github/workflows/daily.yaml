@@ -83,6 +83,7 @@ jobs:
       # Runs after the upload, so the artifact is already there to fall back on
       # if Telegram is the thing that broke.
       - name: Deliver
+        id: deliver
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
@@ -94,3 +95,11 @@ jobs:
             echo
             python notify.py --file "$PUZZLE_PATH" --date "$PUZZLE_DATE"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Delivery is what writes the summary, so a failure before it would leave
+      # the run with none. A delivery failure already reported itself above.
+      - name: Report a failure before delivery
+        if: failure() && steps.deliver.outcome != 'failure'
+        run: |
+          echo "❌ The run failed before delivery; there is no puzzle today." \
+            >> "$GITHUB_STEP_SUMMARY"

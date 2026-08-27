@@ -97,10 +97,22 @@ def test_an_ok_false_body_is_still_a_failure(monkeypatch, puzzle):
         send_to_telegram(puzzle, "x", TOKEN, CHAT_ID)
 
 
-def test_a_refusal_without_a_description_still_reads_as_a_sentence(monkeypatch, puzzle):
+def test_a_refusal_without_a_description_does_not_say_none(monkeypatch, puzzle):
     monkeypatch.setattr(urllib.request, "urlopen", _Urlopen({"ok": False}))
 
     with pytest.raises(DeliveryError, match=r"refused the upload \(no detail\)"):
+        send_to_telegram(puzzle, "x", TOKEN, CHAT_ID)
+
+
+def test_a_reply_that_is_not_json_is_a_delivery_failure(monkeypatch, puzzle):
+    # A proxy or an outage page can answer 200 with HTML.
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda request, timeout: io.BytesIO(b"<html>502 Bad Gateway</html>"),
+    )
+
+    with pytest.raises(DeliveryError, match="not JSON"):
         send_to_telegram(puzzle, "x", TOKEN, CHAT_ID)
 
 
