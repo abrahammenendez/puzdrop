@@ -2,7 +2,7 @@ name: Daily puzdrop
 
 on:
   schedule:
-    - cron: '33 6 * * *'
+    - cron: '33 4 * * *'
   workflow_dispatch:
     inputs:
       date:
