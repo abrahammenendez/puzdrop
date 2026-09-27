@@ -23,13 +23,15 @@ jobs:
     steps:
       - name: Mask configuration values
         # Actions redacts secrets from logs automatically, but not variables,
-        # so register these two as masks explicitly.
+        # so register these three as masks explicitly.
         env:
           URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
           ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
+          TITLE: ${{ vars.PUZZLE_TITLE }}
         run: |
           echo "::add-mask::$URL_TEMPLATE"
           echo "::add-mask::$ORIGIN"
+          echo "::add-mask::$TITLE"
 
       - uses: actions/checkout@v7
         with:
