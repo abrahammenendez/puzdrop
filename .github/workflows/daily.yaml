@@ -21,18 +21,6 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Mask configuration values
-        # Actions redacts secrets from logs automatically, but not variables,
-        # so register these three as masks explicitly.
-        env:
-          URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
-          ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
-          TITLE: ${{ vars.PUZZLE_TITLE }}
-        run: |
-          echo "::add-mask::$URL_TEMPLATE"
-          echo "::add-mask::$ORIGIN"
-          echo "::add-mask::$TITLE"
-
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -57,9 +45,9 @@ jobs:
       - name: Fetch and convert puzzle
         id: fetch
         env:
-          PUZZLE_API_URL_TEMPLATE: ${{ vars.PUZZLE_API_URL_TEMPLATE }}
-          PUZZLE_API_ORIGIN: ${{ vars.PUZZLE_API_ORIGIN }}
-          PUZZLE_TITLE: ${{ vars.PUZZLE_TITLE }}
+          PUZZLE_API_URL_TEMPLATE: ${{ secrets.PUZZLE_API_URL_TEMPLATE }}
+          PUZZLE_API_ORIGIN: ${{ secrets.PUZZLE_API_ORIGIN }}
+          PUZZLE_TITLE: ${{ secrets.PUZZLE_TITLE }}
           PUZZLE_FILE_PREFIX: ${{ vars.PUZZLE_FILE_PREFIX }}
           REQUESTED_DATE: ${{ inputs.date }}
         run: |

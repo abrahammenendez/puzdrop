@@ -27,7 +27,7 @@ ruff format --check .
 ```
 
 Running `fetch.py` locally needs three environment variables set, matching
-the repository variables below:
+the repository secrets below:
 
 ```sh
 PUZZLE_API_URL_TEMPLATE="..." PUZZLE_API_ORIGIN="..." PUZZLE_TITLE="..." \
@@ -46,22 +46,25 @@ python notify.py --file output/2026-08-20.puz --date 2026-08-20
 
 ## Configuration
 
-Repository **variables**, which are configuration rather than credentials:
+Repository **secrets**, which Actions redacts from logs:
 
-| Variable | Purpose |
+| Secret | Purpose |
 | --- | --- |
 | `PUZZLE_API_URL_TEMPLATE` | Fetch URL, with `{date}` as a placeholder |
 | `PUZZLE_API_ORIGIN` | Value sent as the `Origin` header |
 | `PUZZLE_TITLE` | Title written into the generated `.puz`'s metadata |
+| `TELEGRAM_BOT_TOKEN` | Optional bot token, see "Delivery" below |
+
+Only the bot token is a credential. The other three are secrets because they
+would name the source. Masking them as variables does not work: the step that
+masks a variable prints it before the mask applies.
+
+Repository **variables**, which appear in logs as they are:
+
+| Variable | Purpose |
+| --- | --- |
 | `PUZZLE_FILE_PREFIX` | Optional prefix for the filename, `<prefix>-YYYY-MM-DD.puz` |
 | `TELEGRAM_CHAT_ID` | Optional chat to deliver to, see "Delivery" below |
-
-Actions redacts secrets from logs but not variables, so the workflow masks the
-two that would name the source itself. `PUZZLE_FILE_PREFIX` is left unmasked,
-because it names the artifact on the run page.
-
-And one repository **secret**, `TELEGRAM_BOT_TOKEN`. It is the only real
-credential here, and optional like `TELEGRAM_CHAT_ID`.
 
 ## Delivery
 
