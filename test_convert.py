@@ -69,7 +69,12 @@ def test_characters_outside_latin1_fold_to_their_base_letter():
     # ë is in Latin-1 and survives. Ć is not, so it loses the accent.
     assert to_latin1("Zoë Ćurić") == "Zoë Curic"
     assert to_latin1("puntos…") == "puntos..."
+    assert to_latin1("€€") == "EUREUR"
     assert to_latin1("mañana áéíóú") == "mañana áéíóú"
+
+
+def test_characters_with_no_latin1_form_become_question_marks():
+    assert to_latin1("≈ 3 •") == "? 3 ?"
 
 
 def test_validate_rejects_a_puzzle_with_empty_clues(payload):

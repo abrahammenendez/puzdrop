@@ -12,8 +12,9 @@ PUZ_BLANK = "-"
 # Clues keyed by the coordinate of the square their entry starts at.
 Clues = dict[tuple[int, int], str]
 
-# .puz stores text as Latin-1, which has no room for smart quotes, long dashes
-# or an ellipsis. Swap those for ASCII before anything tries to encode them.
+# .puz stores text as Latin-1, which has no room for smart quotes, long dashes,
+# an ellipsis or the euro sign. Swap those for ASCII before anything tries to
+# encode them.
 # The non-breaking space is the odd one out: Latin-1 has it, but it reads as a
 # space and solvers are happier with a real one.
 _REPLACEMENTS = {
@@ -24,6 +25,7 @@ _REPLACEMENTS = {
     "”": '"',
     "–": "-",
     "—": "-",
+    "€": "EUR",
     "\u00a0": " ",
 }
 
@@ -36,7 +38,8 @@ def to_latin1(text: str) -> str:
     """Fold text into Latin-1, dropping accents only where there is no choice.
 
     Spanish accents and eñe are already in Latin-1, so they come through
-    untouched. Anything outside it loses its accent.
+    untouched. Anything outside it loses its accent, and anything with no
+    accent to lose becomes "?".
     """
     for original, replacement in _REPLACEMENTS.items():
         text = text.replace(original, replacement)
@@ -46,15 +49,15 @@ def to_latin1(text: str) -> str:
         try:
             char.encode("latin-1")
         except UnicodeEncodeError:
-            stripped = "".join(
+            char = "".join(
                 c
                 for c in unicodedata.normalize("NFKD", char)
                 if not unicodedata.combining(c)
             )
-            folded.append(stripped or "?")
-        else:
-            folded.append(char)
-    return "".join(folded)
+        folded.append(char)
+    # Stripping leaves a character with no accent, like "≈", as it was, and
+    # .save() cannot encode it.
+    return "".join(folded).encode("latin-1", "replace").decode("latin-1")
 
 
 def _parse_grid(board: str) -> tuple[list[str], int, int]:
